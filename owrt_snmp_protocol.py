@@ -140,3 +140,57 @@ class snmp_protocol:
             value = '-1'
             error = '-3'
             return value, error
+
+    def __snmp_set(self, id_task, address, community, oid, port, timeout, value):
+        try:
+            val_task = self.__tasks[id_task]
+        except KeyError:
+            return -1
+
+        try:
+            set_res = puresnmp.set(address, community, oid, Integer(int(value)), port=int(port), timeout=float(timeout))
+            # returns the set value
+        except puresnmp.exc.Timeout as e:
+            # no connection
+            # print("puresnmp.exc.Timeout no connection")
+            # print("STOP {0} ERROR no connection: {1}".format(IP, e))
+            val_task['error'] = "1"
+        except puresnmp.exc.NoSuchOID as e:
+            # ERROR
+            # print("STOP ERROR: {0}".format(e))
+            val_task['error'] = "2"
+        else:
+            if str(set_res) == value:
+                val_task['error'] = "0"
+        finally:
+            val_task['run'] = False
+
+    def set_snmp_value(self, address, community, oid, port, timeout, value):
+        id_task = self.__gen_id()
+        val_task = self.__templ_init.copy()
+        val_task['type'] = 'single'
+        val_task['run'] = True
+        val_task['thread'] = Thread(target=self.__snmp_set, args=(id_task, address, community, oid, port, timeout, value))
+        self.__tasks[id_task] = val_task
+
+        val_task['thread'].start()
+
+        return id_task
+
+    def res_set_snmp_value(self, id_task):
+        try:
+            val_task = self.__tasks[id_task]
+        except KeyError:
+            # id not found
+            error = '-2'
+            return error
+
+        if val_task['type'] == 'single':
+            if val_task['run'] == False:
+                del self.__tasks[id_task]
+
+            return val_task['error']
+        else:
+            # task with the given ID is not a single
+            error = '-3'
+            return error
