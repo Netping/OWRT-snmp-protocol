@@ -1,4 +1,4 @@
-from threading import Thread
+from threading import Thread, Lock
 import puresnmp
 from puresnmp.x690.types import Integer
 import time
@@ -9,37 +9,55 @@ class snmp_protocol:
     def __init__(self):
         self.__tasks = {}
         self.__templ_init = {'value': '-1', 'error': '-1', 'run': False, 'type': None, 'thread': None}
+        self.__lock_tasks = Lock()
 
     def __gen_id(self):
-        while True:
+        fl_id_uniq = False
+        while not fl_id_uniq:
             new_id = str(uuid.uuid4())
             try:
+                self.__lock_tasks.acquire()
                 a = self.__tasks[new_id]
             except KeyError:
                 # get unique identifier
-                return new_id
+                fl_id_uniq = True
+            finally:
+                self.__lock_tasks.release()
+        return new_id
 
     def __snmp_poll(self, id_task, address, community, oid, port, timeout, period):
         try:
+            self.__lock_tasks.acquire()
             val_task = self.__tasks[id_task]
         except KeyError:
+            self.__lock_tasks.release()
             return -1
 
-        while val_task['run']:
+        err = val_task['error']
+        val = val_task['value']
+        run_stat = val_task['run']
+        self.__lock_tasks.release()
+
+        while run_stat:
             try:
                 result = puresnmp.get(address, community, oid, port=int(port), timeout=float(timeout))
             except puresnmp.exc.Timeout as e:
                 # no connection
                 # print("STOP {0} ERROR no connection: {1}".format(address, e))
-                val_task['error'] = "1"
+                err = "1"
             except puresnmp.exc.NoSuchOID as e:
                 # ERROR
                 #print("STOP ERROR: {0}".format(e))
-                val_task['error'] = "2"
+                err = "2"
             else:
-                val_task['error'] = "0"
-                val_task['value'] = str(result)
+                err = "0"
+                val = str(result)
             finally:
+                self.__lock_tasks.acquire()
+                val_task['error'] = err
+                val_task['value'] = val
+                run_stat = val_task['run']
+                self.__lock_tasks.release()
                 time.sleep(float(period))
 
     def start_snmp_poll(self, address, community, oid, port, timeout, period):
@@ -48,66 +66,87 @@ class snmp_protocol:
         val_task['type'] = 'poll'
         val_task['run'] = True
         val_task['thread'] = Thread(target=self.__snmp_poll, args=(id_task, address, community, oid, port, timeout, period))
+        self.__lock_tasks.acquire()
         self.__tasks[id_task] = val_task
-
         val_task['thread'].start()
+        self.__lock_tasks.release()
 
         return id_task
 
-    def __stop_poll(self, id_task, val_task):
-        val_task['thread'].join()
+    def __stop_poll(self, id_task, thrd):
+        thrd.join()
+        self.__lock_tasks.acquire()
         del self.__tasks[id_task]
+        self.__lock_tasks.release()
 
     def stop_snmp_poll(self, id_task):
         try:
+            self.__lock_tasks.acquire()
             val_task = self.__tasks[id_task]
         except KeyError:
             # id not found
+            self.__lock_tasks.release()
             return -2
 
         if val_task['type'] == 'poll':
             val_task['run'] = False
+            thrd = val_task['thread']
+            self.__lock_tasks.release()
 
-            th = Thread(target=self.__stop_poll, args=(id_task, val_task))
+            th = Thread(target=self.__stop_poll, args=(id_task, thrd))
             th.start()
 
             return 0
         else:
             # task with the given ID is not a poll
+            self.__lock_tasks.release()
             return -1
 
     def get_snmp_poll(self, id_task):
         try:
+            self.__lock_tasks.acquire()
             val_task = self.__tasks[id_task]
+            value = val_task['value']
+            error = val_task['error']
         except KeyError:
             # id not found
             value = '-1'
             error = '-2'
+        finally:
+            self.__lock_tasks.release()
             return value, error
-        else:
-            return val_task['value'], val_task['error']
 
     def __snmp_get(self, id_task, address, community, oid, port, timeout):
         try:
+            self.__lock_tasks.acquire()
             val_task = self.__tasks[id_task]
         except KeyError:
+            self.__lock_tasks.release()
             return -1
+
+        err = val_task['error']
+        val = val_task['value']
+        self.__lock_tasks.release()
 
         try:
             result = puresnmp.get(address, community, oid, port=int(port), timeout=float(timeout))
         except puresnmp.exc.Timeout as e:
             # no connection
             # print("STOP {0} ERROR no connection: {1}".format(address, e))
-            val_task['error'] = "1"
+            err = "1"
         except puresnmp.exc.NoSuchOID as e:
             # ERROR
             #print("STOP ERROR: {0}".format(e))
-            val_task['error'] = "2"
+            err = "2"
         else:
-            val_task['error'] = "0"
-            val_task['value'] = str(result)
+            err = "0"
+            val = str(result)
         finally:
+            self.__lock_tasks.acquire()
+            val_task['error'] = err
+            val_task['value'] = val
             val_task['run'] = False
+            self.__lock_tasks.release()
 
     def get_snmp_value(self, address, community, oid, port, timeout):
         id_task = self.__gen_id()
@@ -115,17 +154,22 @@ class snmp_protocol:
         val_task['type'] = 'single'
         val_task['run'] = True
         val_task['thread'] = Thread(target=self.__snmp_get, args=(id_task, address, community, oid, port, timeout))
+        self.__lock_tasks.acquire()
         self.__tasks[id_task] = val_task
-
         val_task['thread'].start()
+        self.__lock_tasks.release()
 
         return id_task
 
     def res_get_snmp_value(self, id_task):
         try:
+            self.__lock_tasks.acquire()
             val_task = self.__tasks[id_task]
+            value = val_task['value']
+            error = val_task['error']
         except KeyError:
             # id not found
+            self.__lock_tasks.release()
             value = '-1'
             error = '-2'
             return value, error
@@ -134,18 +178,25 @@ class snmp_protocol:
             if val_task['run'] == False:
                 del self.__tasks[id_task]
 
-            return val_task['value'], val_task['error']
+            self.__lock_tasks.release()
+            return value, error
         else:
             # task with the given ID is not a single
+            self.__lock_tasks.release()
             value = '-1'
             error = '-3'
             return value, error
 
     def __snmp_set(self, id_task, address, community, oid, port, timeout, value):
         try:
+            self.__lock_tasks.acquire()
             val_task = self.__tasks[id_task]
         except KeyError:
+            self.__lock_tasks.release()
             return -1
+
+        err = val_task['error']
+        self.__lock_tasks.release()
 
         try:
             set_res = puresnmp.set(address, community, oid, Integer(int(value)), port=int(port), timeout=float(timeout))
@@ -154,16 +205,19 @@ class snmp_protocol:
             # no connection
             # print("puresnmp.exc.Timeout no connection")
             # print("STOP {0} ERROR no connection: {1}".format(IP, e))
-            val_task['error'] = "1"
+            err = "1"
         except puresnmp.exc.NoSuchOID as e:
             # ERROR
             # print("STOP ERROR: {0}".format(e))
-            val_task['error'] = "2"
+            err = "2"
         else:
             if str(set_res) == value:
-                val_task['error'] = "0"
+                err = "0"
         finally:
+            self.__lock_tasks.acquire()
+            val_task['error'] = err
             val_task['run'] = False
+            self.__lock_tasks.release()
 
     def set_snmp_value(self, address, community, oid, port, timeout, value):
         id_task = self.__gen_id()
@@ -171,17 +225,21 @@ class snmp_protocol:
         val_task['type'] = 'single'
         val_task['run'] = True
         val_task['thread'] = Thread(target=self.__snmp_set, args=(id_task, address, community, oid, port, timeout, value))
+        self.__lock_tasks.acquire()
         self.__tasks[id_task] = val_task
-
         val_task['thread'].start()
+        self.__lock_tasks.release()
 
         return id_task
 
     def res_set_snmp_value(self, id_task):
         try:
+            self.__lock_tasks.acquire()
             val_task = self.__tasks[id_task]
+            error = val_task['error']
         except KeyError:
             # id not found
+            self.__lock_tasks.release()
             error = '-2'
             return error
 
@@ -189,8 +247,10 @@ class snmp_protocol:
             if val_task['run'] == False:
                 del self.__tasks[id_task]
 
-            return val_task['error']
+            self.__lock_tasks.release()
+            return error
         else:
             # task with the given ID is not a single
+            self.__lock_tasks.release()
             error = '-3'
             return error
