@@ -3,6 +3,7 @@ import puresnmp
 from puresnmp.x690.types import Integer
 import time
 import uuid
+from journal import journal
 
 class snmp_protocol:
 
@@ -31,6 +32,8 @@ class snmp_protocol:
             val_task = self.__tasks[id_task]
         except KeyError:
             self.__lock_tasks.release()
+            journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                             "__snmp_poll() id_task " + id_task + " not found")
             return -1
 
         err = val_task['error']
@@ -43,11 +46,17 @@ class snmp_protocol:
                 result = puresnmp.get(address, community, oid, port=int(port), timeout=float(timeout))
             except puresnmp.exc.Timeout as e:
                 # no connection
-                # print("STOP {0} ERROR no connection: {1}".format(address, e))
+                journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                                 "__snmp_poll() ERROR no connection: {0}".format(e) +
+                                 " address: " + address + " community: " + community +
+                                 " oid: " + oid + " port: " + port + " timeout: " + timeout)
                 err = "1"
             except puresnmp.exc.NoSuchOID as e:
                 # ERROR
-                #print("STOP ERROR: {0}".format(e))
+                journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                                 "__snmp_poll() STOP ERROR: {0}".format(e) + " address: " + address +
+                                 " community: " + community + " oid: " + oid + " port: " + port +
+                                 " timeout: " + timeout)
                 err = "2"
             else:
                 err = "0"
@@ -86,6 +95,8 @@ class snmp_protocol:
         except KeyError:
             # id not found
             self.__lock_tasks.release()
+            journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                             "stop_snmp_poll() id_task " + id_task + " not found")
             return -2
 
         if val_task['type'] == 'poll':
@@ -100,6 +111,8 @@ class snmp_protocol:
         else:
             # task with the given ID is not a poll
             self.__lock_tasks.release()
+            journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                             "stop_snmp_poll() task with the given ID is not a poll")
             return -1
 
     def get_snmp_poll(self, id_task):
@@ -110,6 +123,8 @@ class snmp_protocol:
             error = val_task['error']
         except KeyError:
             # id not found
+            journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                             "get_snmp_poll() KeyError")
             value = '-1'
             error = '-2'
         finally:
@@ -132,11 +147,17 @@ class snmp_protocol:
             result = puresnmp.get(address, community, oid, port=int(port), timeout=float(timeout))
         except puresnmp.exc.Timeout as e:
             # no connection
-            # print("STOP {0} ERROR no connection: {1}".format(address, e))
+            journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                             "__snmp_get() ERROR no connection: {0}".format(e) +
+                             " address: " + address + " community: " + community +
+                             " oid: " + oid + " port: " + port + " timeout: " + timeout)
             err = "1"
         except puresnmp.exc.NoSuchOID as e:
             # ERROR
-            #print("STOP ERROR: {0}".format(e))
+            journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                             "__snmp_get() STOP ERROR: {0}".format(e) + " address: " + address +
+                             " community: " + community + " oid: " + oid + " port: " + port +
+                             " timeout: " + timeout)
             err = "2"
         else:
             err = "0"
@@ -170,6 +191,8 @@ class snmp_protocol:
         except KeyError:
             # id not found
             self.__lock_tasks.release()
+            journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                             "res_get_snmp_value() KeyError")
             value = '-1'
             error = '-2'
             return value, error
@@ -183,6 +206,8 @@ class snmp_protocol:
         else:
             # task with the given ID is not a single
             self.__lock_tasks.release()
+            journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                             "res_get_snmp_value() task with the given ID is not a single")
             value = '-1'
             error = '-3'
             return value, error
@@ -193,6 +218,8 @@ class snmp_protocol:
             val_task = self.__tasks[id_task]
         except KeyError:
             self.__lock_tasks.release()
+            journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                             "__snmp_set() id_task " + id_task + " not found")
             return -1
 
         err = val_task['error']
@@ -203,12 +230,17 @@ class snmp_protocol:
             # returns the set value
         except puresnmp.exc.Timeout as e:
             # no connection
-            # print("puresnmp.exc.Timeout no connection")
-            # print("STOP {0} ERROR no connection: {1}".format(IP, e))
+            journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                             "__snmp_set() ERROR no connection: {0}".format(e) +
+                             " address: " + address + " community: " + community +
+                             " oid: " + oid + " port: " + port + " timeout: " + timeout)
             err = "1"
         except puresnmp.exc.NoSuchOID as e:
             # ERROR
-            # print("STOP ERROR: {0}".format(e))
+            journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                             "__snmp_set() STOP ERROR: {0}".format(e) + " address: " + address +
+                             " community: " + community + " oid: " + oid + " port: " + port +
+                             " timeout: " + timeout)
             err = "2"
         else:
             if str(set_res) == value:
@@ -240,6 +272,8 @@ class snmp_protocol:
         except KeyError:
             # id not found
             self.__lock_tasks.release()
+            journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                             "res_set_snmp_value() KeyError")
             error = '-2'
             return error
 
@@ -252,5 +286,7 @@ class snmp_protocol:
         else:
             # task with the given ID is not a single
             self.__lock_tasks.release()
+            journal.WriteLog("OWRT_SNMP_Protocol", "Normal", "err",
+                             "res_set_snmp_value() task with the given ID is not a single")
             error = '-3'
             return error
