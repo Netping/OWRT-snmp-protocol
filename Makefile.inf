@@ -1,9 +1,9 @@
 SECTION="NetPing modules"
 CATEGORY="Base"
-TITLE="EPIC5 OWRT_SNMP_Protocol"
+TITLE="OWRT-snmp_protocol"
 
-PKG_NAME="OWRT_SNMP_Protocol"
-PKG_VERSION="Epic5.V1.S1"
+PKG_NAME="OWRT-snmp_protocol"
+PKG_VERSION="0.1"
 PKG_RELEASE=1
 
 MODULE_FILES=owrt_snmp_protocol.py
