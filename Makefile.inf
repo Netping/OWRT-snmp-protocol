@@ -1,20 +1,32 @@
+include depends.mk
+
 SECTION="NetPing modules"
 CATEGORY="Base"
 TITLE="OWRT-snmp_protocol"
 
 PKG_NAME="OWRT-snmp_protocol"
 PKG_VERSION="0.1"
-PKG_RELEASE=1
+PKG_RELEASE=2
+PKG_DEPENDS=OWRT_Log
 
 MODULE_FILES=owrt_snmp_protocol.py
-MODULE_FILES_DIR=/usr/lib/python3.7/
+MODULE_FILES_DIR ?= /usr/lib/python3.7/
+
+INSTALL_DIR=
 
 .PHONY: all install
 
-all: install
-	
+all: configure build install
+
+configure:
+	@echo "Nothing to do"
+
+build:
+	@echo "Nothing to do"
+
 install:
-	for f in $(MODULE_FILES); do cp $${f} $(MODULE_FILES_DIR); done
+	mkdir -p $(INSTALL_DIR)$(MODULE_FILES_DIR)
+	for f in $(MODULE_FILES); do cp $${f} $(INSTALL_DIR)$(MODULE_FILES_DIR); done
 
 clean:
-	for f in $(MODULE_FILES); do rm -f $(MODULE_FILES_DIR)$${f}; done
+	for f in $(MODULE_FILES); do rm -f $(INSTALL_DIR)$(MODULE_FILES_DIR)/$${f}; done
