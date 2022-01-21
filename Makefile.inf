@@ -7,7 +7,7 @@ TITLE="OWRT-snmp_protocol"
 PKG_NAME="OWRT-snmp_protocol"
 PKG_VERSION="0.1"
 PKG_RELEASE=2
-PKG_DEPENDS=OWRT_Log
+PKG_DEPENDS=OWRT-log OWRT-PLIB-puresnmp
 
 MODULE_FILES=owrt_snmp_protocol.py
 MODULE_FILES_DIR ?= /usr/lib/python3.7/
