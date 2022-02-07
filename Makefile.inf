@@ -2,11 +2,11 @@ include depends.mk
 
 SECTION="NetPing modules"
 CATEGORY="Base"
-TITLE="OWRT-snmp_protocol"
+TITLE="OWRT-snmp-protocol"
 
-PKG_NAME="OWRT-snmp_protocol"
+PKG_NAME="OWRT-snmp-protocol"
 PKG_VERSION="0.1"
-PKG_RELEASE=2
+PKG_RELEASE=3
 PKG_DEPENDS=OWRT-log OWRT-PLIB-puresnmp
 
 MODULE_FILES=owrt_snmp_protocol.py
@@ -16,12 +16,17 @@ INSTALL_DIR=
 
 .PHONY: all install
 
-all: configure build install
+all: build preinstall install configure
 
-configure:
-	@echo "Nothing to do"
+ipk: build install
 
 build:
+	@echo "Nothing to do"
+
+preinstall:
+	@echo "Nothing to do"
+
+configure:
 	@echo "Nothing to do"
 
 install:
