@@ -12,6 +12,10 @@ PKG_DEPENDS=OWRT-log OWRT-PLIB-puresnmp
 MODULE_FILES=owrt_snmp_protocol.py
 MODULE_FILES_DIR ?= /usr/lib/python3.7/
 
+ETC_FILES_DIR=/etc/netping/$(PKG_NAME)/
+
+TESTS_SRC_DIR=Tests
+
 INSTALL_DIR=
 
 .PHONY: all install
@@ -32,6 +36,13 @@ configure:
 install:
 	mkdir -p $(INSTALL_DIR)$(MODULE_FILES_DIR)
 	for f in $(MODULE_FILES); do cp $${f} $(INSTALL_DIR)$(MODULE_FILES_DIR); done
+	mkdir -p $(INSTALL_DIR)$(ETC_FILES_DIR)
+	cp -r $(TESTS_SRC_DIR) $(INSTALL_DIR)$(ETC_FILES_DIR)
 
 clean:
+ifeq ($(INSTALL_DIR),)
 	for f in $(MODULE_FILES); do rm -f $(INSTALL_DIR)$(MODULE_FILES_DIR)/$${f}; done
+	rm -rf $(ETC_FILES_DIR)
+else
+	rm -rf $(INSTALL_DIR)
+endif
