@@ -75,9 +75,11 @@ def test_set_snmp_value():
                         'community' : '0',
                         'oid' : '0',
                         'snmp_port' : '0',
-                        'timeout' : '5' }
+                        'timeout' : '5',
+                        'value' : '1'
+                }
 
-        snmp_id = snmp_pr.set_snmp_value(sensor['snmp_addr'], sensor['community'], sensor['oid'], sensor['snmp_port'], sensor['timeout'])
+        snmp_id = snmp_pr.set_snmp_value(sensor['snmp_addr'], sensor['community'], sensor['oid'], sensor['snmp_port'], sensor['timeout'], sensor['value'])
         time.sleep(int(sensor['timeout']))
         err = snmp_pr.res_set_snmp_value(snmp_id)
 
